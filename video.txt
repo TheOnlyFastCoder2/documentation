@@ -1,0 +1,606 @@
+[00:00:00]
+
+All right.
+
+In the last video we looked at using Dolly
+GPT for inference.
+
+And I give you a notebook with that.
+
+quite a few of you have asked for me to show
+how I did the fine tuning for this.
+
+So this will just be a short video of just
+walking through the CoLab of how to do the
+
+fine tuning, explaining some of the bits in
+this.
+
+So we're gonna be doing a LoRa or a low rank
+adaption tuning.
+
+So this is like adapters that we're adding
+to the model.
+
+If you're interested in that go and look at
+this paper, which will explain exactly how
+
+it works.
+
+The cool thing is this is actually built into
+the hugging face PFT library so that's what
+
+we're gonna be using to do this.
+
+One of the things for the dataset, so a lot
+of you said that you wanna try on your own
+
+data.
+
+The data set I'm using here is the cleaned
+alpaca dataset which is based on the original
+
+alpaca.
+
+But it turned out the original alpaca dataset
+had a lot of problems with it so that a lot
+
+of the math had wrong answers.
+
+A lot of bad formatting and things like that,
+so people have [00:01:00] gone through and
+
+cleaned it up.
+
+Now, I should stress that this is, not supposed
+to be used for commercial applications.
+
+This data set while we're training a GPT-J,
+which you can use for various, applications
+
+the data set itself because it was created
+with the open ai api, you are not supposed
+
+to use this for a commercial application.
+
+So use this as a guide to create your own
+data set that's quite similar to this.
+
+And if you're looking for how to make a data
+set, I showed how this dataset was created
+
+in one of the alpaca videos of how to create
+an alpaca dataset.
+
+so let's have a look at the code.
+
+So we're basically just bringing in the clean
+dataset repo.
+
+We've got our key things for installing here.
+
+We wanna make sure that we are using the latest
+transformers from GitHub.
+
+So don't use a conventional PIP install for
+this.
+
+Install from source here.
+
+The same for the PEFT library.
+
+And then we're gonna be using bits [00:02:00]
+and bytes, which allows us to load models
+
+in eight bit.
+
+And hopefully they'll not do distant future
+perhaps in 4 bit as well.
+
+Which is really exciting if that comes about.
+
+They're the libraries that we're gonna be
+using.
+
+First off,we wanna basically just check out
+the tokenizer.
+
+So the model itself that we are loading is
+from the model, the tokenizer come from EleutherAI
+
+GPT-J-6B.
+
+So I think from memory, I said yesterday this
+is trained on about 400 billion tokens.
+
+it's certainly a decent model that you can
+test out and try out, and it's totally hugging
+
+face compliant, meaning that we can just use
+the auto tokenizer here and bring in the tokenizer
+
+for this.
+
+We can load up our data set by just basically
+usingthe hugging face data set package to
+
+load a data set from JSon, bring this in.
+
+So if you want to go make your own Data set,
+go and study the Json, how it's formatted
+
+in here cause then you can just basically
+swap that out for this kind of code.
+
+We've then got each [00:03:00] of these things
+is basically an instruction and input or an
+
+output in the Json.
+
+So we inject those into a prompt.
+
+So the prompt that we've got here, you can
+see that this is taken from a repo of how
+
+to trainalpaca, LoRa.
+
+And what this is just injecting it into a
+string so that we can basically inject this
+
+into the model.
+
+So you can see we've got the below is an instruction
+that describes a task paired with an input
+
+that provides further context.
+
+So this is just taken from the original alpaca
+data set and we are just injecting in the
+
+instruction.
+
+if there's an input, we inject the input.
+
+You can see there's two versions, one with
+input, one without input, and then the response
+
+is just the output that we would want the
+model to create.
+
+So when we actually use this for inference
+we're just gonna basically be using these
+
+bits up to response colon, and then we let
+the model generated out.
+
+Obviously, when we [00:04:00] are training,
+we have to give it the output as well so that
+
+it learns what kind of output it should be
+creating for that.
+
+So this basically just loads up the data set,
+runs it through the tokenizer.
+
+With it, running through the generate prompt
+for each of these so that we getour data set.
+
+And we can see that running this thing through,
+we can see, okay, what's actually in that
+
+data set we can get a sense of, okay, what's
+actually there.
+
+Next up we want to set up the actual sort
+of model.
+
+So the model here, I'm bringing in a number
+of things.
+
+I'm bringing in obviously PyTorch.
+
+We're bringing in bits and bytes so that we
+can load this model in eight bit.
+
+And then we've got a few things from transformers.
+
+We're just gonna bring in the GPT- J for causal
+language modeling to load the actual model
+
+here.
+
+And we're also gonna be bringing in from PEFT
+we're gonna prepare the model for eight bit
+
+into Joe training.
+
+And our LoRa config and get a PFT model here.
+
+Okay.
+
+Setting up this part we want some hyper parameters.[00:05:00]
+
+So this can be a little bit tricky is that,
+We're going to basically accumulate the gradients
+
+so that we are not just doing, one step and
+then calculate the gradients.
+
+We're going to have a batch size, which is
+here, is set to 128.
+
+And then a micro batch size is how many can
+I do on a forward pass?
+
+Now, actually on a forward pass I was training
+on an a 100.
+
+You could actually go higher than this.
+
+If you're training on a 3090 or something
+like that, you possibly can go for eight on
+
+this one, or you want to change it down to
+four.
+
+And then the gradient accumulation steps is
+basically deciding, okay, if we want a batch
+
+size, how many of these micro batches do we
+have to go through and accumulate the gradients
+
+before we actually do our back prop and update
+everything?
+
+This is something that you can play around
+with.
+
+you can play around with the epoch.
+
+So I've set this one to be a short version,
+but the previous version I trained was at
+
+three.
+
+I find that two gets you pretty much [00:06:00]
+there.
+
+certainly for just trying it out and seeing
+how the model is.
+
+If you don't wanna wait around for ages, then
+you can go for two epochs.
+
+One epoch wouldn't be enough though in testing.
+
+We then set off a learning rate.
+
+And we then set off a cutoff length for the
+sequences.
+
+So in this we are going to b basically be
+just inputting sequences of 256 in here.
+
+Now the next few parameters are the bits that
+relate to the LoRa config.
+
+These are to do with the attention heads.
+
+So the way that the LoRa actually works is
+it goes through, and it puts in new sets of
+
+weights or what's called adapters in this
+case on the attention heads.
+
+And we want to basically, decide okay, how
+big they are.
+
+So this is what's called the alpha scaling
+part of it.
+
+And this is for the actual attention heads
+themselves.
+
+We then want to set, cause they're what we're
+gonna train.
+
+We're gonna freeze the rest of the model when
+we're doing the training.
+
+We are just gonna train these adapters.
+
+So we want to [00:07:00] set a LoRa dropout
+rate for that.
+
+So generally that would be somewhere between
+0.05 and 0.1 as you are going through this.
+
+These you could actually make this bigger
+but obviously that's then gonna take longer
+
+to do the training as you go through.
+
+Once we've got that set up, we are just bringing
+in the tokenizer again bringing in the actual
+
+model.
+
+So you can see here we're using the GPT-J
+for causal language modeling.
+
+I'm loading it in eight bit so that we can
+do this.
+
+And then we're going to basically prepare
+that model.
+
+For this PEFT training or for prepare the
+model for integer 8 bit training.
+
+We then basically pass in our LoRa config.
+
+So these are things we've set up already.
+
+So we've set up, for the attention heads,
+the scaling.
+
+The next thing is that we want to tell it
+which modules we're targeting in the actual
+
+model.
+
+So this model does actually have, Q projection
+and V projection in there that are named correctly.
+
+So it's easy to target these.
+
+We're passing in the dropouts and then the
+main one here is we're passing in the [00:08:00]
+
+task type.
+
+So this is doing causal language modeling,
+right?
+
+We're predicting the next token and we're
+setting it up to do that.
+
+we can now basically take the model that we
+had up here and turn it into a PEFT model.
+
+So we're passing it in with this config.
+
+So this will basically now convert it to have
+the adapters built in there.
+
+And this is what allows us, this is what we're
+actually training, right?
+
+These adapters.
+
+we set a pad token here and then let me just
+put a little bit of a space between it.
+
+And then we're basically just bringing in
+the clean data set.
+
+This probably should go in this cell below
+here.
+
+And we are then gonna basically take our data.
+
+Shuffle it.
+
+We're going to generate the prompts for this,
+we're gonna truncate it with the max length
+
+being 256 that we set up in the hyper parameters
+up there.
+
+Now, if your data set was much longer, you
+would set this to longer.
+
+So it turns out that in the alpaca data set,
+and I'm pretty sure this is true with the
+
+[00:09:00] cleaned alpaca as well, that approximately
+96% or something of all the examples are 256
+
+tokens or less.
+
+So it doesn't make a big deal to cut it off
+at 256 tokens here.
+
+If your data set was much longer then you
+would basically,go for a longer, maybe for
+
+512 or, something like that.
+
+or even out to, a thousand plus tokens.
+
+We're also gonna be padding, everything This
+is setting up our padding for the actual sequences
+
+as well in here.
+
+So once we've got that, we've got our data
+set, and you can see that now when we look
+
+at this our data set is different from up
+above in that we've now got actual input IDs
+
+and attention masks.
+
+So this is what the model needs for training.
+
+You can see that the data here is just under
+trained data set.
+
+That's how we can access it.
+
+And you can see it's just under 52,000 examples
+in this.
+
+So the next thing up is our trainer.
+
+So this is the Transformers trainer that we
+are using here.
+
+We pass in our [00:10:00] model.
+
+So at this stage we're passing in the LoRa
+model itself.
+
+Obviously not trained or anything yet.
+
+We are passing in the train data set that
+we've just prepared.
+
+We are passing in Micro batch and the number
+of steps for gradient accumulation.
+
+So that's the key thing that we're gonna be
+setting up there.
+
+We want to have some warmup steps.
+
+We don't wanna start at the biggest learning
+rate.
+
+We want to warm up the learning rate.
+
+So we're gonna have a hundred steps of warmup
+in this.
+
+And then we're gonna train for two epochs
+in here and then passing in the learning rate
+
+and passing in a directory name where we're
+gonna save checkpoints.
+
+And we can set then also the total number
+of steps for logging, but also the total number
+
+of checkpoints that we want to, have saved
+at any point.
+
+So that basically just as you're going through
+it keeps the last three checkpoints for you.
+
+we then basically have a data collator, which
+is what we're using, to basically take in
+
+the data set that we've assigned up here with
+our tokenizer, we are not doing mlm masking.
+
+So we are not trying to predict something
+inside the [00:11:00] sequence we're predicting
+
+at the end of the sequence.
+
+So we set this to false.
+
+We then basically say that we're not gonna
+resume from a checkpoint.
+
+If you did actually save a checkpoint and
+you wanted to come back and use it, this is
+
+where you would set this to be true here.
+
+And then finally, we're just gonna save our
+model out at the end to a particular folder.
+
+Once you start, training this you'll see that
+it goes on.
+
+And the first a hundred steps you probably
+won't see, a huge difference.
+
+And then afterwards you'll start to see the
+loss come down, quite nicely.
+
+If you're doing more steps, you could certainly
+do that in here.
+
+Once you get to the end and you've got your
+training done, if you want to save the training,
+
+so if it's just on your local machine and
+you don't want to push it to the cloud or
+
+anything, then fine, you're done.
+
+You can then basically load from this part
+here.
+
+And so we've done model save, pre-trained.
+
+You could also put in tokenizer save pre-trained
+in there.
+
+And then you would just load it like any hugging
+face model.
+
+if you do wanna push it to the cloud you're
+gonna want to basically log into the hugging
+
+face hub.
+
+So get a token on hugging face [00:12:00]
+for this.
+
+If you just go to your settings in hugging
+face, you can see your tokens, you can create
+
+a read write token, which will allow you to
+write a model, save a model up there.
+
+And then finally we just basically push this
+model to the cloud.
+
+And you'll see, cause what we are not pushing
+here is not the full model.
+
+We're pushing the LoRa adapters to the cloud.
+
+So the size of these is actually very tiny
+here..
+
+So this sort of explains, what's being saved
+to the cloud, it's still gonna need to download
+
+the original GPT-J at this stage.
+
+Perhaps in a future video we'll look at converting
+it.
+
+So you don't need to download the other model
+you've just got it all in one model.
+
+But here, you would still just like in the
+inference notebook that I showed you yesterday,
+
+you would then basically download the GPT-J
+and then from that you would download these
+
+weights and join it together and then use
+it for inference in that case.
+
+So hopefully this explains how to do it.
+
+As always, the notebook for this is in the
+description.
+
+If you have any questions, please put them
+in the comments.
+
+If this was [00:13:00] useful to you, please
+click and subscribe, et cetera.
+
+And I will see you in the next video.
+
+Thanks for watching.
+
+Bye for now.
+
